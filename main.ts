@@ -1,0 +1,44 @@
+// Sunset Heist — a gta6-cover-art-01 entry (Node 22, standard library only).
+// The app is this directory's app/ folder: plain static files a desktop browser
+// loads offline (app/index.html and its ES modules, the Anton and Pacifico fonts
+// under app/fonts/, four generated sample photos under app/samples/). It makes
+// comic-book GTA-style cover art — slanted multi-panel pages with halftone ink,
+// a huge gradient title, a neon script subtitle, stars, a seal and a bottom
+// strip — and exports it as a PNG in 1080x1080, 1080x1350 or 1920x1080.
+// This program hands the entry in: it copies app/ and screenshots/ from beside
+// this file to /output and writes /output/dossier.json, the summary the judge
+// reads, with the vendored make.fun library.
+//
+// Try it locally with `node serve.ts`, then open http://localhost:8080.
+// Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
+//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+
+import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { buildDossier } from './vendor/makefun-app.ts';
+
+const repoRoot = fileURLToPath(new URL('.', import.meta.url));
+const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+
+function handIn() {
+  mkdirSync(outDir, { recursive: true });
+  cpSync(join(repoRoot, 'app'), join(outDir, 'app'), { recursive: true });
+  const shots = join(repoRoot, 'screenshots');
+  mkdirSync(join(outDir, 'screenshots'), { recursive: true });
+  if (existsSync(shots)) cpSync(shots, join(outDir, 'screenshots'), { recursive: true });
+  // The scorer's caps (reference/gate.json): the text cap shapes the dossier's
+  // bytes; the others refuse an entry the scorer would refuse (more than 4
+  // screenshots or one over 256 KiB; more than 993 files in app/ or 48 MiB of
+  // app files in all, or a path under app/ over 1000 bytes).
+  const dossier = buildDossier(outDir, {
+    text_max_bytes: 163840,
+    screenshots: { max: 4, max_bytes: 262144 },
+    app_max_files: 993,
+    app_max_bytes: 50331648,
+    app_path_max_bytes: 1000,
+  });
+  writeFileSync(join(outDir, 'dossier.json'), dossier);
+}
+
+handIn();
